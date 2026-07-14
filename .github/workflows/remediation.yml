@@ -1,0 +1,30 @@
+name: AIOps Automatic Remediation
+
+on:
+  repository_dispatch:
+    types:
+      - cpu_alert
+
+
+jobs:
+
+  remediation:
+
+    runs-on: ubuntu-latest
+
+
+    steps:
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+
+    - name: Install Ansible
+      run: |
+        sudo apt update
+        sudo apt install ansible -y
+
+
+    - name: Execute Ansible remediation
+      run: |
+        ansible-playbook playbooks/cpu_fix.yml
