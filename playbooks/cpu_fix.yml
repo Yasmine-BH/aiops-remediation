@@ -1,0 +1,56 @@
+---
+- name: CPU overload remediation
+  hosts: localhost
+  become: yes
+
+  tasks:
+
+    # 1. Recherche du processus responsable
+    - name: Check if stress process exists
+      shell: pgrep stress
+      register: stress_process
+      failed_when: false
+
+
+    # 2. Arrêt automatique du processus stress
+    - name: Stop stress process if detected
+      shell: pkill stress
+      when: stress_process.rc == 0
+
+
+    # 3. Redémarrage du service Apache
+    - name: Restart Apache service
+      systemd:
+        name: apache2
+        state: restarted
+
+
+    # 4. Attente après correction
+    - name: Wait for system recovery
+      pause:
+        seconds: 5
+
+
+    # 5. Vérification de l'utilisation CPU
+    - name: Verify CPU after remediation
+      shell: top -bn1 | grep "%Cpu"
+      register: cpu_result
+
+
+    # 6. Affichage du résultat
+    - name: Display CPU result
+      debug:
+        msg: "{{ cpu_result.stdout }}"
+
+
+    # 7. Vérification finale Apache
+    - name: Check Apache status
+      systemd:
+        name: apache2
+      register: apache_status
+
+
+    # 8. Afficher état Apache
+    - name: Display Apache status
+      debug:
+        msg: "Apache status : {{ apache_status.status.ActiveState }}"

@@ -1,0 +1,56 @@
+---
+- name: Automatic Apache recovery
+
+  hosts: localhost
+
+  connection: local
+
+  become: yes
+
+
+  tasks:
+
+    - name: Restart Apache service
+
+      service:
+
+        name: apache2
+
+        state: restarted
+
+
+
+    - name: Wait for service recovery
+
+      pause:
+
+        seconds: 5
+
+
+
+    - name: Verify Apache status
+
+      command:
+
+        systemctl is-active apache2
+
+      register: apache_status
+
+
+
+    - name: Verify HTTP availability
+
+      uri:
+
+        url: http://localhost
+
+        status_code: 200
+
+
+
+    - name: Display recovery result
+
+      debug:
+
+        msg:
+          "Apache recovered successfully"
