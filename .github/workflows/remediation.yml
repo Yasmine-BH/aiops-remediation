@@ -4,13 +4,14 @@ on:
   repository_dispatch:
     types:
       - cpu_alert
+      - service_alert
 
 
 jobs:
 
   remediation:
 
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
 
     steps:
@@ -19,12 +20,24 @@ jobs:
       uses: actions/checkout@v4
 
 
-    - name: Install Ansible
-      run: |
-        sudo apt update
-        sudo apt install ansible -y
+    - name: Verify EC2 environment
+      run:
+        |
+        echo "Running on EC2"
+        hostname
+        python3 --version
+        ansible --version
 
 
-    - name: Execute Ansible remediation
+    - name: CPU remediation
+      if: github.event.action == 'cpu_alert'
       run: |
+        echo "CPU overload detected"
         ansible-playbook playbooks/cpu_fix.yml
+
+
+    - name: Service remediation
+      if: github.event.action == 'service_alert'
+      run: |
+        echo "Service failure detected"
+        ansible-playbook playbooks/service_fix.yml
