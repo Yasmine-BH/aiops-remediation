@@ -1,0 +1,17 @@
+---
+- name: AWS Auto Scaling remediation
+  hosts: localhost
+  connection: local
+
+  tasks:
+
+    - name: Increase Auto Scaling desired capacity
+      command: >
+        aws autoscaling set-desired-capacity
+        --auto-scaling-group-name aiops-app-auto_scaling
+        --desired-capacity 2
+
+    - name: Verify Auto Scaling group
+      command: >
+        aws autoscaling describe-auto-scaling-groups
+        --auto-scaling-group-names aiops-app-auto_scaling

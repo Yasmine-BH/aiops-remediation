@@ -21,19 +21,20 @@ jobs:
 
 
     - name: Verify EC2 environment
-      run:
-        |
+      run: |
         echo "Running on EC2"
         hostname
         python3 --version
         ansible --version
+        aws --version
 
 
-    - name: CPU remediation
+    - name: CPU Auto Scaling remediation
       if: github.event.action == 'cpu_alert'
       run: |
         echo "CPU overload detected"
-        ansible-playbook playbooks/cpu_fix.yml
+        echo "Launching Auto Scaling remediation"
+        ansible-playbook playbooks/scale_out.yml
 
 
     - name: Service remediation
@@ -41,3 +42,4 @@ jobs:
       run: |
         echo "Service failure detected"
         ansible-playbook playbooks/service_fix.yml
+
