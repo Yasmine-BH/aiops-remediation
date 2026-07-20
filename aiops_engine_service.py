@@ -3,6 +3,8 @@ import requests
 import time
 import json
 
+from webhook import trigger_github_action
+
 
 
 def check_apache():
@@ -51,23 +53,6 @@ def check_apache():
         "timestamp":time.time()
 
     }
-
-
-
-def run_ansible():
-
-
-    print("🚀 Launching automatic remediation")
-
-
-    subprocess.run(
-
-        [
-            "ansible-playbook",
-            "playbooks/service_fix.yml"
-        ]
-
-    )
 
 
 
@@ -124,13 +109,15 @@ while True:
 
 
 
-        # AUTOMATISATION
+        # AUTOMATISATION (via GitHub Actions -> Ansible service_fix.yml)
 
-        run_ansible()
+        print("\n📡 Dispatching service_alert to GitHub Actions...")
+
+        trigger_github_action("service_alert")
 
 
 
-        print("\n✅ Remediation completed")
+        print("\n✅ Remediation dispatched")
 
 
         break
