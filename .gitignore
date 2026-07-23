@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 *.save
 *.tar.gz
+*.log
+*.csv

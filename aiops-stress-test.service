@@ -1,0 +1,6 @@
+[Unit]
+Description=AIOps Controlled Stress Test (for ML training data generation)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/stress-ng --cpu 2 --timeout 60s

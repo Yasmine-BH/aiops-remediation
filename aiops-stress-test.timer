@@ -1,0 +1,9 @@
+[Unit]
+Description=Run controlled stress test periodically to generate labeled incident data
+
+[Timer]
+OnCalendar=*-*-* 06,12,18,22:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
