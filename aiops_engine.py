@@ -83,8 +83,8 @@ def collect_reading():
 init_log_file()
 model, scaler = load_model()
 
-print(f"🤖 Loaded ML model ({MODEL_FILE}) — replacing fixed threshold with learned anomaly detection")
-print(f"📊 Logging every reading to {LOG_FILE} (running continuously)")
+print(f" Loaded ML model ({MODEL_FILE})  replacing fixed threshold with learned anomaly detection")
+print(f" Logging every reading to {LOG_FILE} (running continuously)")
 
 while True:
 
@@ -118,29 +118,26 @@ while True:
         incident = {
             "type": "CPU_OVERLOAD",
             "priority": "HIGH",
+            "action": "scale_out",  # the only remediation this pipeline performs: AWS Auto Scaling
         }
 
-        print("\n🚨 INCIDENT DETECTED (ML)")
+        print("\n INCIDENT DETECTED (ML)")
         print(json.dumps(incident, indent=2))
 
-        print("\n🔎 Starting RCA...")
+        print("\n Starting RCA (for diagnostics/logging only  does not change the remediation)...")
         causes = analyze_cpu_cause()
 
         if causes:
             root_cause = causes[0]
             print("Root Cause:", root_cause)
 
-            if root_cause["name"] == "stress":
-                incident["action"] = "kill_process"
-            else:
-                incident["action"] = "restart_service"
-
         print("\nDecision:")
         print(incident)
 
-        print("\n📡 Dispatching cpu_alert to GitHub Actions...")
+        print("\n Dispatching cpu_alert to GitHub Actions...")
         trigger_remediation("cpu_alert")
 
         counter = 0
-        print(f"\n⏳ Cooling down for {COOLDOWN_AFTER_INCIDENT}s before resuming detection...\n")
+        print(f"\n Cooling down for {COOLDOWN_AFTER_INCIDENT}s before resuming detection...\n")
         time.sleep(COOLDOWN_AFTER_INCIDENT)
+
