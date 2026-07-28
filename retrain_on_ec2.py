@@ -35,7 +35,7 @@ normal_data = df[~df["ground_truth_incident"]][FEATURES]
 scaler = StandardScaler()
 normal_scaled = scaler.fit_transform(normal_data)
 
-iso = IsolationForest(n_estimators=200, contamination=0.03, random_state=42)
+iso = IsolationForest(n_estimators=200, contamination=0.01, random_state=42)
 iso.fit(normal_scaled)
 
 # --- Quick validation ---
@@ -53,3 +53,5 @@ print(f"\nValidation -> Precision: {precision:.3f}  Recall: {recall:.3f}")
 joblib.dump(iso, "iso_forest_cpu.joblib")
 joblib.dump(scaler, "cpu_scaler.joblib")
 print("\nRetrained and saved: iso_forest_cpu.joblib, cpu_scaler.joblib (matches this box's scikit-learn version)")
+
+

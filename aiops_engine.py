@@ -44,7 +44,15 @@ def load_model():
 
 def is_anomalous(model, scaler, cpu, mem, load_avg):
     """Ask the trained model whether this single reading looks abnormal.
-    Returns True/False. Replaces the old `cpu > THRESHOLD` rule."""
+    Includes a hard safety floor: genuinely low CPU is never treated as
+    anomalous, no matter what the model says. This protects against an
+    oversensitive/overfit model (e.g. trained on a very short, quiet
+    dataset) firing false incidents  and false AWS remediation calls 
+    on completely normal idle load."""
+    SAFE_CPU_FLOOR = 15  # below this, never flag as anomalous
+    if cpu < SAFE_CPU_FLOOR:
+        return False
+
     row = pd.DataFrame([[cpu, mem, load_avg]], columns=FEATURES_ORDER)
     scaled = scaler.transform(row)
     prediction = model.predict(scaled)  # -1 = anomaly, 1 = normal
