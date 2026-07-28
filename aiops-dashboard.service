@@ -1,0 +1,16 @@
+[Unit]
+Description=AIOps Live Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/sofiatech_aiops/aiops-remediation
+ExecStart=/home/ubuntu/sofiatech_aiops/aiops-remediation/venv/bin/python3 dashboard.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/ubuntu/sofiatech_aiops/aiops-remediation/dashboard.log
+StandardError=append:/home/ubuntu/sofiatech_aiops/aiops-remediation/dashboard.log
+
+[Install]
+WantedBy=multi-user.target
