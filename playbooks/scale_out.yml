@@ -1,17 +1,42 @@
 ---
 - name: AWS Auto Scaling remediation
   hosts: localhost
-  connection: local
+  gather_facts: true
+
+  vars:
+    asg_name: aiops-app-auto_scaling
 
   tasks:
+    - name: Get current Auto Scaling Group state
+      command: >
+        aws autoscaling describe-auto-scaling-groups
+        --auto-scaling-group-names {{ asg_name }}
+        --query "AutoScalingGroups[0].[DesiredCapacity,MaxSize]"
+        --output text
+      register: asg_state
+      changed_when: false
+
+    - name: Parse current desired capacity and max size
+      set_fact:
+        current_desired: "{{ asg_state.stdout.split()[0] | int }}"
+        max_size: "{{ asg_state.stdout.split()[1] | int }}"
+
+    - name: Compute new desired capacity (increment by 1, capped at max)
+      set_fact:
+        new_desired: "{{ [ (current_desired | int) + 1, max_size | int ] | min }}"
+
+    - name: Report planned change
+      debug:
+        msg: "Scaling {{ asg_name }} from {{ current_desired }} to {{ new_desired }} (max allowed: {{ max_size }})"
+
+    - name: Skip scaling if already at max capacity
+      debug:
+        msg: "Already at max capacity ({{ max_size }})  no scaling action taken."
+      when: (current_desired | int) >= (max_size | int)
 
     - name: Increase Auto Scaling desired capacity
       command: >
         aws autoscaling set-desired-capacity
-        --auto-scaling-group-name aiops-app-auto_scaling
-        --desired-capacity 2
-
-    - name: Verify Auto Scaling group
-      command: >
-        aws autoscaling describe-auto-scaling-groups
-        --auto-scaling-group-names aiops-app-auto_scaling
+        --auto-scaling-group-name {{ asg_name }}
+        --desired-capacity {{ new_desired }}
+      when: (current_desired | int) < (max_size | int)
