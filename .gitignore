@@ -5,3 +5,4 @@ __pycache__/
 *.tar.gz
 *.log
 *.csv
+incidents_log.jsonl

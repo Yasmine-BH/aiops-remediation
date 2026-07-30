@@ -48,6 +48,14 @@ def log_reading(event, is_incident):
         )
 
 
+INCIDENTS_LOG = "incidents_log.jsonl"  # shared with aiops_engine.py, read by the dashboard
+
+
+def log_incident_story(record):
+    with open(INCIDENTS_LOG, "a") as f:
+        f.write(json.dumps(record) + "\n")
+
+
 def check_apache():
 
     status = subprocess.run(
@@ -94,6 +102,8 @@ while True:
 
     if is_incident:
 
+        incident_time = time.time()
+
         incident = {
             "type": "SERVICE_DOWN",
             "priority": "CRITICAL",
@@ -105,9 +115,28 @@ while True:
 
         # AUTOMATISATION (via GitHub Actions -> Ansible service_fix.yml)
         print("\n📡 Dispatching service_alert to GitHub Actions...")
-        trigger_remediation("service_alert")
+        dispatch_status = trigger_remediation("service_alert")
+        dispatch_success = dispatch_status == 204
 
-        print("\n✅ Remediation dispatched")
+        print("\n✅ Remediation dispatched" if dispatch_success else "\n❌ Remediation dispatch failed")
+
+        log_incident_story({
+            "timestamp": incident_time,
+            "source": "service",
+            "type": incident["type"],
+            "priority": incident["priority"],
+            "trigger_values": {
+                "status": event["status"],
+                "responding": event["responding"],
+                "response_time_ms": event["response_time_ms"],
+            },
+            "ml_detected": False,  # this side is rule-based, not ML — the dashboard should say so honestly
+            "root_cause": "Apache inactive or not responding to HTTP requests"
+                if event["status"] != "active" else "Apache active but not responding (possible hang)",
+            "action_taken": incident["action"],
+            "dispatch_success": dispatch_success,
+            "dispatch_status_code": dispatch_status,
+        })
 
         # Cool down instead of exiting, so the engine keeps running
         # and keeps collecting data for future ML training.
