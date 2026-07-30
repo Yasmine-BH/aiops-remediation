@@ -140,11 +140,3 @@ export GITHUB_TOKEN=your_token_here
 python3 aiops_engine.py          # CPU detection
 python3 aiops_engine_service.py  # Apache detection
 ```
-
-## Known limitations
-
-- The RCA modules are rule-based, not ML-driven — they're intentionally simple and only inform logging, not the remediation decision.
-- No hot-reload of the model: a full service restart is required after retraining.
-- No lock/guard against overlapping retraining runs.
-- `.joblib` model files are version-controlled directly in this repo rather than in a dedicated model store — acceptable at this scale, but not ideal for long-term history size.
-- If `GITHUB_TOKEN` is missing or invalid, remediation silently fails to trigger (logged, but no separate alert to a human operator).
