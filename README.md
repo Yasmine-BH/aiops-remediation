@@ -1,4 +1,4 @@
-# AIOps Remediation
+# AIOps
 
 An end-to-end AIOps pipeline that monitors a Linux server, detects anomalies using a machine learning model, performs lightweight root-cause analysis, and triggers automated remediation through GitHub Actions and Ansible — with a self-retraining loop to keep the ML model up to date.
 
