@@ -9,7 +9,8 @@ from webhook import trigger_remediation
 
 
 CHECK_INTERVAL = 5  # seconds between checks
-COOLDOWN_AFTER_INCIDENT = 30  # seconds to wait before resuming detection after an incident
+
+incident_active = False  # True while an ongoing outage hasn't recovered yet
 
 LOG_FILE = "service_metrics_log.csv"
 LOG_FIELDS = [
@@ -100,8 +101,15 @@ while True:
     # Log every reading, whether healthy or an incident
     log_reading(event, is_incident)
 
-    if is_incident:
+    if not is_incident:
+        # A healthy check means any ongoing outage has genuinely
+        # recovered — clear the flag so the next failure is treated
+        # as a fresh, new incident rather than a continuation.
+        incident_active = False
 
+    if is_incident and not incident_active:
+
+        incident_active = True
         incident_time = time.time()
 
         incident = {
@@ -138,10 +146,9 @@ while True:
             "dispatch_status_code": dispatch_status,
         })
 
-        # Cool down instead of exiting, so the engine keeps running
-        # and keeps collecting data for future ML training.
-        print(f"\n⏳ Cooling down for {COOLDOWN_AFTER_INCIDENT}s before resuming detection...\n")
-        time.sleep(COOLDOWN_AFTER_INCIDENT)
-        continue
+        print("\n✅ Incident recorded. Will not re-dispatch until service recovers first.\n")
+
+    elif is_incident and incident_active:
+        print("(ongoing outage, already handled — waiting for recovery)")
 
     time.sleep(CHECK_INTERVAL)

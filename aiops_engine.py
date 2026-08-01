@@ -11,7 +11,6 @@ from webhook import trigger_remediation
 
 
 COUNTER_LIMIT = 10  # consecutive anomalous readings required before firing an incident
-COOLDOWN_AFTER_INCIDENT = 30  # seconds to wait before resuming detection after an incident
 
 LOG_FILE = "cpu_metrics_log.csv"
 LOG_FIELDS = [
@@ -30,6 +29,7 @@ SCALER_FILE = "cpu_scaler.joblib"
 FEATURES_ORDER = ["cpu_percent", "mem_percent", "load_avg_1min"]
 
 counter = 0
+incident_active = False  # True while an ongoing incident hasn't recovered yet
 
 
 def load_model():
@@ -125,13 +125,23 @@ while True:
         counter += 1
     else:
         counter = 0
+        # A normal reading means any ongoing incident has genuinely
+        # recovered — clear the flag so the next threshold crossing is
+        # treated as a fresh, new incident rather than a continuation.
+        incident_active = False
 
     is_incident = counter >= COUNTER_LIMIT
 
     log_reading(cpu, mem, load_avg, counter, is_incident)
 
-    if is_incident:
+    # Edge-triggered alerting: only fire when the incident is NEW (the
+    # condition just became true and wasn't already active). While the
+    # same incident continues, keep logging readings but don't
+    # re-dispatch remediation — one sustained problem should produce
+    # one incident, not one every time a fixed cooldown timer expires.
+    if is_incident and not incident_active:
 
+        incident_active = True
         incident_time = time.time()
 
         incident = {
@@ -176,6 +186,8 @@ while True:
             "dispatch_status_code": dispatch_status,
         })
 
-        counter = 0
-        print(f"\n⏳ Cooling down for {COOLDOWN_AFTER_INCIDENT}s before resuming detection...\n")
-        time.sleep(COOLDOWN_AFTER_INCIDENT)
+        print("\n✅ Incident recorded. Will not re-dispatch until CPU recovers to normal first.\n")
+
+    elif is_incident and incident_active:
+        # Still the same ongoing incident — log quietly, no re-dispatch.
+        print("(ongoing incident, already handled — waiting for recovery)")

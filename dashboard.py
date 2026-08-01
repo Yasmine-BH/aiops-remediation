@@ -15,7 +15,8 @@ RETRAIN_LOG = os.path.join(BASE_DIR, "retrain.log")
 
 MAX_POINTS = 200
 MAX_INCIDENTS = 20
-RECOVERY_CHECK_WINDOW = 60  # seconds after the incident to check whether metrics recovered
+RECOVERY_CHECK_WINDOW = 120  # seconds after the incident to look at, wide enough to cover a full stress test
+RECOVERY_TAIL_SECONDS = 20   # only judge recovery using the END of that window, not the whole thing
 
 
 def safe_read_csv(path, n=MAX_POINTS):
@@ -44,22 +45,40 @@ def read_incidents():
 
 
 def determine_outcome(incident, cpu_full_df):
-    """Did the situation actually recover after this incident? Checked by
-    looking at CPU readings in the window after the incident fired — if
-    they settled back to safe levels, remediation is judged to have
-    worked; if not, it's still ongoing/unresolved."""
+    """Did the situation actually recover after this incident? A naive
+    average over the whole post-incident window is misleading: a real
+    stress test can run for 50+ seconds AFTER the incident already
+    fired (it needs ~10s of sustained high CPU just to cross the
+    trigger threshold), so most of a short window would still be
+    inside the active stress test, making genuine recoveries look
+    "unresolved". Instead, we look at a wide window, but judge
+    recovery using only its tail end — i.e. where things actually
+    stand by the time the window closes."""
     if incident["source"] != "cpu" or cpu_full_df.empty:
         return "unknown"
 
-    after = cpu_full_df[
+    window_end = incident["timestamp"] + RECOVERY_CHECK_WINDOW
+    tail_start = window_end - RECOVERY_TAIL_SECONDS
+
+    full_window = cpu_full_df[
         (cpu_full_df["timestamp"] > incident["timestamp"]) &
-        (cpu_full_df["timestamp"] <= incident["timestamp"] + RECOVERY_CHECK_WINDOW)
+        (cpu_full_df["timestamp"] <= window_end)
     ]
-    if after.empty:
+    if full_window.empty:
         return "pending"  # not enough time has passed yet to know
 
-    avg_cpu_after = after["cpu_percent"].mean()
-    return "resolved" if avg_cpu_after < 50 else "unresolved"
+    # If we don't have data reaching all the way to the tail portion
+    # yet, the full recovery window hasn't elapsed — still pending.
+    latest_reading_time = full_window["timestamp"].max()
+    if latest_reading_time < tail_start:
+        return "pending"
+
+    tail = full_window[full_window["timestamp"] >= tail_start]
+    if tail.empty:
+        return "pending"
+
+    avg_cpu_tail = tail["cpu_percent"].mean()
+    return "resolved" if avg_cpu_tail < 50 else "unresolved"
 
 
 @app.route("/")
@@ -288,7 +307,7 @@ DASHBOARD_HTML = """
     <div class="panel"><div class="panel-title">Memory &amp; Load Trace</div><canvas class="main-chart" id="memLoadChart"></canvas></div>
 </div>
 
-<div class="section-title">Incident Timeline <span class="count-pill" id="incident-total">0</span></div>
+<div class="section-title">Incident Timeline <span class="count-pill" id="incident-total">0</span><span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-faint);font-size:11px;">total &middot; showing most recent 20</span></div>
 <div id="incident-container"><div class="incident-empty">No incidents recorded yet</div></div>
 
 <div class="footer-bar">
@@ -396,7 +415,7 @@ DASHBOARD_HTML = """
             cpuChart.data.labels = labels; cpuChart.data.datasets[0].data = data.cpu.cpu_percent; cpuChart.update();
             memLoadChart.data.labels = labels; memLoadChart.data.datasets[0].data = data.cpu.mem_percent; memLoadChart.data.datasets[1].data = data.cpu.load_avg_1min; memLoadChart.update();
 
-            document.getElementById('incident-total').innerText = data.incident_stories.length;
+            document.getElementById('incident-total').innerText = data.cpu_incident_count + data.service_incident_count;
             const container = document.getElementById('incident-container');
             container.innerHTML = data.incident_stories.length === 0
                 ? '<div class="incident-empty">No incidents recorded yet</div>'
