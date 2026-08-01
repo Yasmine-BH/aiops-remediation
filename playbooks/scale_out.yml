@@ -31,7 +31,7 @@
 
     - name: Skip scaling if already at max capacity
       debug:
-        msg: "Already at max capacity ({{ max_size }})  no scaling action taken."
+        msg: "Already at max capacity ({{ max_size }}) — no scaling action taken."
       when: (current_desired | int) >= (max_size | int)
 
     - name: Increase Auto Scaling desired capacity
@@ -39,4 +39,9 @@
         aws autoscaling set-desired-capacity
         --auto-scaling-group-name {{ asg_name }}
         --desired-capacity {{ new_desired }}
+      when: (current_desired | int) < (max_size | int)
+
+    - name: Schedule automatic scale-down in 5 minutes (cost control for limited budget)
+      shell: >
+        echo "aws autoscaling set-desired-capacity --auto-scaling-group-name {{ asg_name }} --desired-capacity {{ current_desired }}" | at now + 5 minutes
       when: (current_desired | int) < (max_size | int)
